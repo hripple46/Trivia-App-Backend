@@ -1,43 +1,52 @@
+const fs = require("fs").promises;
 let fetch;
 const cron = require("node-cron");
+const express = require("express");
+var router = express.Router();
+
+// Empty questions array initialization
+var questions = [];
 
 async function init() {
   const nodeFetch = await import("node-fetch");
   fetch = nodeFetch.default;
+
+  try {
+    const data = await fs.readFile("questions.json", "utf8");
+    questions = JSON.parse(data);
+  } catch (err) {
+    console.error("Could not load questions from file, fetching new set.");
+    await addQuestions();
+  }
 }
 
-var express = require("express");
-var router = express.Router();
-
-//empty questions array initialization
-var questions = [];
-//function to add questions to the array every 24 hours
-const addQuestions = () => {
-  questions.length = 0;
-  fetch("https://opentdb.com/api.php?amount=5&category=9")
-    .then((response) => response.json())
-    .then((data) => {
-      // Sort the questions by difficulty level
-      const sortedByDifficulty = data.results.sort((a, b) => {
-        const order = ["easy", "medium", "hard"];
-        return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
-      });
-
-      // Shuffle answers for each question
-      const shuffledQuestions = sortedByDifficulty.map((question) => {
-        const allAnswers = [
-          // Spread operator to add all incorrect answers
-          ...question.incorrect_answers,
-          question.correct_answer,
-        ];
-        question.shuffledAnswers = shuffle([...allAnswers]);
-        return question;
-      });
-
-      // Set the sorted and shuffled questions into state
-      questions = shuffledQuestions;
+const addQuestions = async () => {
+  try {
+    const response = await fetch(
+      "https://opentdb.com/api.php?amount=5&category=9"
+    );
+    const data = await response.json();
+    const sortedByDifficulty = data.results.sort((a, b) => {
+      const order = ["easy", "medium", "hard"];
+      return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
     });
+
+    const shuffledQuestions = sortedByDifficulty.map((question) => {
+      const allAnswers = [
+        ...question.incorrect_answers,
+        question.correct_answer,
+      ];
+      question.shuffledAnswers = shuffle([...allAnswers]);
+      return question;
+    });
+
+    questions = shuffledQuestions;
+    await fs.writeFile("questions.json", JSON.stringify(questions));
+  } catch (err) {
+    console.error("Error fetching questions:", err);
+  }
 };
+
 // Fisher-Yates shuffle algorithm
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
@@ -46,13 +55,14 @@ function shuffle(array) {
   }
   return array;
 }
+
 init()
   .then(() => {
     // Schedule a task to run every day at 8PM EST
     cron.schedule(
       "0 20 * * *",
       () => {
-        console.log("Fetching new questions..."); // Optional logging
+        console.log("Fetching new questions...");
         addQuestions();
       },
       {
@@ -70,15 +80,9 @@ router.get("/", function (req, res, next) {
 });
 
 router.get("/questions", async function (req, res, next) {
-  // Check if the questions array is empty
-  const checkIfEmpty = async () => {
-    if (questions.length === 0) {
-      // If it is, call the addQuestions function
-      addQuestions();
-    }
-  };
-  //call function
-  await checkIfEmpty();
+  if (questions.length === 0) {
+    await addQuestions();
+  }
   res.status(200).json(questions);
 });
 
