@@ -1,4 +1,5 @@
 let fetch;
+const cron = require("node-cron");
 
 async function init() {
   const nodeFetch = await import("node-fetch");
@@ -44,10 +45,21 @@ function shuffle(array) {
   }
   return array;
 }
-//call function
-init().then(() => {
-  addQuestions();
-});
+init()
+  .then(() => {
+    // Optionally, run addQuestions once immediately upon startup
+    addQuestions();
+
+    // Schedule a task to run every day at a specific time, e.g., 3:00 AM
+    // The cron syntax "0 3 * * *" translates to "At 3:00 AM, every day".
+    cron.schedule("0 15 * * *", () => {
+      console.log("Fetching new questions..."); // Optional logging
+      addQuestions();
+    });
+  })
+  .catch((err) => {
+    console.error("Initialization failed:", err);
+  });
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
