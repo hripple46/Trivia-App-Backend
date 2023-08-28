@@ -47,9 +47,6 @@ function shuffle(array) {
 }
 init()
   .then(() => {
-    // Optionally, run addQuestions once immediately upon startup
-    addQuestions();
-
     // Schedule a task to run every day at a specific time, e.g., 3:00 AM
     // The cron syntax "0 3 * * *" translates to "At 3:00 AM, every day".
     cron.schedule("0 15 * * *", () => {
