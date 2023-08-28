@@ -13,6 +13,7 @@ var router = express.Router();
 var questions = [];
 //function to add questions to the array every 24 hours
 const addQuestions = () => {
+  questions.length = 0;
   fetch("https://opentdb.com/api.php?amount=5&category=9")
     .then((response) => response.json())
     .then((data) => {
