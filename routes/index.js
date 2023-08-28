@@ -50,10 +50,16 @@ init()
   .then(() => {
     // Schedule a task to run every day at a specific time, e.g., 3:00 AM
     // The cron syntax "0 3 * * *" translates to "At 3:00 AM, every day".
-    cron.schedule("0 15 * * *", () => {
-      console.log("Fetching new questions..."); // Optional logging
-      addQuestions();
-    });
+    cron.schedule(
+      "0 15 * * *",
+      () => {
+        console.log("Fetching new questions..."); // Optional logging
+        addQuestions();
+      },
+      {
+        timezone: "America/New_York",
+      }
+    );
   })
   .catch((err) => {
     console.error("Initialization failed:", err);
