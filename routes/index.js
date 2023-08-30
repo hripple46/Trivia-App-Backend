@@ -1,43 +1,59 @@
 require("dotenv").config();
-const { MongoClient } = require("mongodb");
+const mongoose = require("mongoose");
 let fetch;
 const cron = require("node-cron");
 const express = require("express");
 const router = express.Router();
 const MongoDBConnection = process.env.MONGODB_CONNECTION;
 
-let questionsCollection;
+// Define Mongoose Schema
+const QuestionSchema = new mongoose.Schema({
+  category: String,
+  type: String,
+  difficulty: String,
+  question: String,
+  correct_answer: String,
+  incorrect_answers: [String],
+  shuffledAnswers: [String],
+});
+
+// Define Mongoose Model
+const Question = mongoose.model("Question", QuestionSchema);
 
 async function init() {
-  const client = new MongoClient(MongoDBConnection);
-  await client.connect();
-  questionsCollection = client.db().collection("questions");
-
-  const nodeFetch = await import("node-fetch");
-  fetch = nodeFetch.default;
-
   try {
-    const cursor = questionsCollection.find({});
-    const data = await cursor.toArray();
-    if (data.length === 0) {
+    // Connect to MongoDB
+    await mongoose.connect(MongoDBConnection, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("Connected to MongoDB");
+
+    // Import node-fetch
+    const nodeFetch = await import("node-fetch");
+    fetch = nodeFetch.default;
+
+    const questions = await Question.find();
+    if (questions.length === 0) {
       await addQuestions();
     }
   } catch (err) {
-    console.error("Could not load questions from DB, fetching new set.");
-    await addQuestions();
+    console.error("Initialization failed:", err);
   }
 }
 
 async function addQuestions() {
   try {
-    // Clear old questions from the collection
-    await questionsCollection.deleteMany({});
+    // Clear old questions
+    await Question.deleteMany({});
 
+    // Fetch new questions
     const response = await fetch(
       "https://opentdb.com/api.php?amount=5&category=9"
     );
     const data = await response.json();
 
+    // Sort and shuffle questions
     const sortedByDifficulty = data.results.sort((a, b) => {
       const order = ["easy", "medium", "hard"];
       return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
@@ -52,7 +68,8 @@ async function addQuestions() {
       return question;
     });
 
-    await questionsCollection.insertMany(shuffledQuestions);
+    // Insert into MongoDB
+    await Question.insertMany(shuffledQuestions);
   } catch (err) {
     console.error("Error fetching questions:", err);
   }
@@ -88,8 +105,7 @@ router.get("/", function (req, res, next) {
 });
 
 router.get("/questions", async function (req, res, next) {
-  const cursor = questionsCollection.find({});
-  const questions = await cursor.toArray();
+  const questions = await Question.find();
   if (questions.length === 0) {
     await addQuestions();
   }
