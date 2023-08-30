@@ -8,6 +8,8 @@ var router = express.Router();
 var questions = [];
 
 async function init() {
+  await checkAndRunTask(); // Check if we need to run the task immediately upon server startup
+
   const nodeFetch = await import("node-fetch");
   fetch = nodeFetch.default;
 
@@ -17,6 +19,38 @@ async function init() {
   } catch (err) {
     console.error("Could not load questions from file, fetching new set.");
     await addQuestions();
+  }
+}
+async function getLastRunTime() {
+  try {
+    const data = await fs.readFile("lastRunTime.json", "utf8");
+    return new Date(JSON.parse(data).time);
+  } catch (err) {
+    console.error("Could not read last run time from file:", err);
+    return new Date(0); // Return a far past date if the file doesn't exist or can't be read
+  }
+}
+
+async function setLastRunTime(currentTime) {
+  try {
+    await fs.writeFile(
+      "lastRunTime.json",
+      JSON.stringify({ time: currentTime.toISOString() })
+    );
+  } catch (err) {
+    console.error("Could not write last run time to file:", err);
+  }
+}
+
+async function checkAndRunTask() {
+  const lastRunTime = await getLastRunTime();
+  const currentTime = new Date();
+  const currentDay = currentTime.getUTCDate();
+  const lastRunDay = new Date(lastRunTime).getUTCDate();
+
+  if (lastRunDay < currentDay && currentTime.getUTCHours() >= 20) {
+    await addQuestions();
+    await setLastRunTime(currentTime);
   }
 }
 
@@ -60,7 +94,7 @@ init()
   .then(() => {
     // Schedule a task to run every day at 8PM EST
     cron.schedule(
-      "0 20 * * *",
+      "15 20 * * *",
       () => {
         console.log("Fetching new questions...");
         addQuestions();
