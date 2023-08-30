@@ -100,7 +100,7 @@ function shuffle(array) {
 initAndCheck()
   .then(() => {
     cron.schedule(
-      "48 23 * * *",
+      "* 12 * * *",
       () => {
         console.log("Fetching new questions...");
         addQuestions();
