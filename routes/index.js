@@ -1,71 +1,43 @@
-const fs = require("fs").promises;
+require("dotenv").config();
+const { MongoClient } = require("mongodb");
 let fetch;
 const cron = require("node-cron");
 const express = require("express");
-var router = express.Router();
+const router = express.Router();
+const MongoDBConnection = process.env.MONGODB_CONNECTION;
 
-// Lock variable
-var isUpdating = false;
+let questionsCollection;
 
-// Empty questions array initialization
-var questions = [];
-
-async function initAndCheck() {
-  const lastRunTime = await getLastRunTime();
-  const currentTime = new Date();
-  const currentDay = currentTime.getUTCDate();
-  const lastRunDay = new Date(lastRunTime).getUTCDate();
-
-  let shouldFetchQuestions =
-    lastRunDay < currentDay && currentTime.getUTCHours() >= 20;
-
-  try {
-    const data = await fs.readFile("questions.json", "utf8");
-    questions = JSON.parse(data);
-  } catch (err) {
-    console.error("Could not load questions from file, fetching new set.");
-    shouldFetchQuestions = true;
-  }
-
-  if (shouldFetchQuestions) {
-    await addQuestions();
-    await setLastRunTime(currentTime);
-  }
-}
-
-async function getLastRunTime() {
-  try {
-    const data = await fs.readFile("lastRunTime.json", "utf8");
-    return new Date(JSON.parse(data).time);
-  } catch (err) {
-    console.error("Could not read last run time from file:", err);
-    return new Date(0);
-  }
-}
-
-async function setLastRunTime(currentTime) {
-  try {
-    await fs.writeFile(
-      "lastRunTime.json",
-      JSON.stringify({ time: currentTime.toISOString() })
-    );
-  } catch (err) {
-    console.error("Could not write last run time to file:", err);
-  }
-}
-
-async function addQuestions() {
-  if (isUpdating) return;
-  isUpdating = true;
+async function init() {
+  const client = new MongoClient(MongoDBConnection);
+  await client.connect();
+  questionsCollection = client.db().collection("questions");
 
   const nodeFetch = await import("node-fetch");
   fetch = nodeFetch.default;
 
   try {
+    const cursor = questionsCollection.find({});
+    const data = await cursor.toArray();
+    if (data.length === 0) {
+      await addQuestions();
+    }
+  } catch (err) {
+    console.error("Could not load questions from DB, fetching new set.");
+    await addQuestions();
+  }
+}
+
+async function addQuestions() {
+  try {
+    // Clear old questions from the collection
+    await questionsCollection.deleteMany({});
+
     const response = await fetch(
       "https://opentdb.com/api.php?amount=5&category=9"
     );
     const data = await response.json();
+
     const sortedByDifficulty = data.results.sort((a, b) => {
       const order = ["easy", "medium", "hard"];
       return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
@@ -80,13 +52,10 @@ async function addQuestions() {
       return question;
     });
 
-    questions = shuffledQuestions;
-    await fs.writeFile("questions.json", JSON.stringify(questions));
+    await questionsCollection.insertMany(shuffledQuestions);
   } catch (err) {
     console.error("Error fetching questions:", err);
   }
-
-  isUpdating = false; // Release the lock
 }
 
 function shuffle(array) {
@@ -97,13 +66,13 @@ function shuffle(array) {
   return array;
 }
 
-initAndCheck()
+init()
   .then(() => {
     cron.schedule(
-      "* 12 * * *",
-      () => {
+      "*/10 * * * *",
+      async () => {
         console.log("Fetching new questions...");
-        addQuestions();
+        await addQuestions();
       },
       {
         timezone: "America/New_York",
@@ -119,6 +88,8 @@ router.get("/", function (req, res, next) {
 });
 
 router.get("/questions", async function (req, res, next) {
+  const cursor = questionsCollection.find({});
+  const questions = await cursor.toArray();
   if (questions.length === 0) {
     await addQuestions();
   }
