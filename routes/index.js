@@ -94,7 +94,7 @@ init()
   .then(() => {
     // Schedule a task to run every day at 8PM EST
     cron.schedule(
-      "15 20 * * *",
+      "30 20 * * *",
       () => {
         console.log("Fetching new questions...");
         addQuestions();
