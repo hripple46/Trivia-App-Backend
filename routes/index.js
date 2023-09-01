@@ -15,6 +15,7 @@ const QuestionSchema = new mongoose.Schema({
   correct_answer: String,
   incorrect_answers: [String],
   shuffledAnswers: [String],
+  sortOrder: Number, // Added this field for sorting
 });
 
 // Define Mongoose Model
@@ -54,10 +55,12 @@ async function addQuestions() {
     const data = await response.json();
 
     // Sort and shuffle questions
+    const order = ["easy", "medium", "hard"];
     const sortedByDifficulty = data.results.sort((a, b) => {
-      const order = ["easy", "medium", "hard"];
       return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
     });
+
+    let sortOrder = 1; // Initialize sortOrder value
 
     const shuffledQuestions = sortedByDifficulty.map((question) => {
       const allAnswers = [
@@ -65,6 +68,7 @@ async function addQuestions() {
         question.correct_answer,
       ];
       question.shuffledAnswers = shuffle([...allAnswers]);
+      question.sortOrder = sortOrder++; // Assign and increment sortOrder
       return question;
     });
 
@@ -106,9 +110,10 @@ router.get("/", function (req, res, next) {
 });
 
 router.get("/questions", async function (req, res, next) {
-  const questions = await Question.find();
+  let questions = await Question.find().sort({ sortOrder: 1 }); // Add sorting here
   if (questions.length === 0) {
     await addQuestions();
+    questions = await Question.find().sort({ sortOrder: 1 }); // Add sorting here if new questions are fetched
   }
   console.log("Sorted Questions", questions);
   res.status(200).json(questions);
