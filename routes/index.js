@@ -50,7 +50,7 @@ async function addQuestions() {
 
     // Fetch new questions
     const response = await fetch(
-      "https://opentdb.com/api.php?amount=5&category=9"
+      "https://opentdb.com/api.php?amount=5&category=9&token=8862b8aafe51d9fd18f6e62a02cc32a0305ad586754707bb3af3253d96acbaa2"
     );
     const data = await response.json();
 
@@ -91,7 +91,7 @@ function shuffle(array) {
 init()
   .then(() => {
     cron.schedule(
-      "0 1 * * *",
+      "48 17 * * *",
       async () => {
         console.log("Fetching new questions...");
         await addQuestions();
