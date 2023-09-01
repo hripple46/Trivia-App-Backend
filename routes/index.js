@@ -110,6 +110,7 @@ router.get("/questions", async function (req, res, next) {
   if (questions.length === 0) {
     await addQuestions();
   }
+  console.log("Sorted Questions", questions);
   res.status(200).json(questions);
 });
 
