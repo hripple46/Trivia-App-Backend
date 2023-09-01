@@ -70,6 +70,7 @@ async function addQuestions() {
 
     // Insert into MongoDB
     await Question.insertMany(shuffledQuestions);
+    console.log("Questions added to MongoDB", shuffledQuestions);
   } catch (err) {
     console.error("Error fetching questions:", err);
   }
