@@ -51,12 +51,9 @@ async function addQuestions() {
     // Fetch new questions
     let response = null;
     try {
-      response = await fetch(
-        "https://opentdb.com/api.php?amount=5&category=9&token=8862b8aafe51d9fd18f6e62a02cc32a0305ad586754707bb3af3253d96acbaa2"
-      );
+      response = await fetch("https://opentdb.com/api.php?amount=5&category=9");
     } catch (error) {
       console.error("Error fetching data with token:", error);
-      response = await fetch("https://opentdb.com/api.php?amount=5&category=9");
     }
     const data = await response.json();
     if (data.response_code !== 0) {
@@ -101,7 +98,7 @@ function shuffle(array) {
 init()
   .then(() => {
     cron.schedule(
-      "0 23 * * *",
+      "0 9 * * *",
       async () => {
         console.log("Fetching new questions...");
         await addQuestions();
