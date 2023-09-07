@@ -74,22 +74,18 @@ async function addQuestions() {
     // Clear old questions
     await Question.deleteMany({});
 
-    // Fetch new questions
-    let response = null;
-    try {
-      response = await fetch("https://opentdb.com/api.php?amount=5&category=9");
-    } catch (error) {
-      console.error("Error fetching data with token:", error);
-    }
-    const data = await response.json();
-    if (data.response_code !== 0) {
-      console.error("Error fetching data with token:", data);
-      response = await fetch("https://opentdb.com/api.php?amount=5&category=9");
-    }
+    let questions = await triviaQuestion.aggregate([{ $sample: { size: 5 } }]);
+
+    // add the questions to the used questions collection
+    await UsedQuestion.insertMany(questions);
+
+    // delete the questions from triviaQuestions collection
+    const questionIds = questions.map((q) => q._id);
+    await triviaQuestion.deleteMany({ _id: { $in: questionIds } });
 
     // Sort and shuffle questions
     const order = ["easy", "medium", "hard"];
-    const sortedByDifficulty = data.results.sort((a, b) => {
+    const sortedByDifficulty = questions.sort((a, b) => {
       return order.indexOf(a.difficulty) - order.indexOf(b.difficulty);
     });
 
@@ -121,10 +117,10 @@ function shuffle(array) {
   return array;
 }
 
-/*init()
+init()
   .then(() => {
     cron.schedule(
-      "0 1 * * *",
+      "*/15 * * * *",
       async () => {
         console.log("Fetching new questions...");
         await addQuestions();
@@ -136,8 +132,7 @@ function shuffle(array) {
   })
   .catch((err) => {
     console.error("Initialization failed:", err);
-  });*/
-init();
+  });
 
 router.get("/", function (req, res, next) {
   res.send("3 of 5 Correct");
@@ -151,20 +146,6 @@ router.get("/questions", async function (req, res, next) {
   }
   console.log("Sorted Questions", questions);
   res.status(200).json(questions);
-});
-router.get("/triviaquestions", async function (req, res, next) {
-  try {
-    // retrieve 5 random questions from the database without the sorting order
-    let questions = await triviaQuestion.aggregate([{ $sample: { size: 5 } }]);
-    console.log("Trivia Questions", questions);
-    // add the questions to the used questions collection
-    //await UsedQuestion.insertMany(questions);
-
-    res.status(200).json(questions);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: "An error occurred" });
-  }
 });
 
 module.exports = router;
