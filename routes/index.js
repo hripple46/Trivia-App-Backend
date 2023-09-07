@@ -18,8 +18,34 @@ const QuestionSchema = new mongoose.Schema({
   sortOrder: Number, // Added this field for sorting
 });
 
+//define a collecltion for used questions
+const UsedQuestionSchema = new mongoose.Schema({
+  category: String,
+  type: String,
+  difficulty: String,
+  question: String,
+  correct_answer: String,
+  incorrect_answers: [String],
+});
+const UsedQuestion = mongoose.model("UsedQuestion", UsedQuestionSchema);
+
 // Define Mongoose Model
 const Question = mongoose.model("Question", QuestionSchema);
+
+//define a collecltion for trivia questions
+const triviaQuestionSchema = new mongoose.Schema({
+  category: String,
+  type: String,
+  difficulty: String,
+  question: String,
+  correct_answer: String,
+  incorrect_answers: [String],
+});
+const triviaQuestion = mongoose.model(
+  "triviaQuestion",
+  triviaQuestionSchema,
+  "triviaQuestions"
+);
 
 async function init() {
   try {
@@ -95,7 +121,7 @@ function shuffle(array) {
   return array;
 }
 
-init()
+/*init()
   .then(() => {
     cron.schedule(
       "0 1 * * *",
@@ -110,7 +136,8 @@ init()
   })
   .catch((err) => {
     console.error("Initialization failed:", err);
-  });
+  });*/
+init();
 
 router.get("/", function (req, res, next) {
   res.send("3 of 5 Correct");
@@ -124,6 +151,20 @@ router.get("/questions", async function (req, res, next) {
   }
   console.log("Sorted Questions", questions);
   res.status(200).json(questions);
+});
+router.get("/triviaquestions", async function (req, res, next) {
+  try {
+    // retrieve 5 random questions from the database without the sorting order
+    let questions = await triviaQuestion.aggregate([{ $sample: { size: 5 } }]);
+    console.log("Trivia Questions", questions);
+    // add the questions to the used questions collection
+    //await UsedQuestion.insertMany(questions);
+
+    res.status(200).json(questions);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "An error occurred" });
+  }
 });
 
 module.exports = router;
