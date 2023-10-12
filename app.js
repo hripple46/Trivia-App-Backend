@@ -8,6 +8,17 @@ var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 
 var app = express();
+const Sentry = require("@sentry/node");
+const { ProfilingIntegration } = require("@sentry/profiling-node");
+
+Sentry.init({
+  dsn: "https://f9b6e6163d1edc6fa4cd83dccc6fba3a@o4505896571895808.ingest.sentry.io/4505896572026880",
+  integrations: [new ProfilingIntegration()],
+  // Performance Monitoring
+  tracesSampleRate: 1.0, // Capture 100% of the transactions, reduce in production!
+  // Set sampling rate for profiling - this is relative to tracesSampleRate
+  profilesSampleRate: 1.0, // Capture 100% of the transactions, reduce in production!
+});
 
 app.use(cors());
 
