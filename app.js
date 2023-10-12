@@ -19,20 +19,6 @@ Sentry.init({
   // Set sampling rate for profiling - this is relative to tracesSampleRate
   profilesSampleRate: 1.0, // Capture 100% of the transactions, reduce in production!
 });
-const transaction = Sentry.startTransaction({
-  op: "test",
-  name: "My First Test Transaction",
-});
-
-setTimeout(() => {
-  try {
-    foo();
-  } catch (e) {
-    Sentry.captureException(e);
-  } finally {
-    transaction.finish();
-  }
-}, 99);
 
 app.use(cors());
 
